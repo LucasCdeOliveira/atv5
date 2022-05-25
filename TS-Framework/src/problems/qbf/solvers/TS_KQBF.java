@@ -9,6 +9,9 @@ import solutions.Solution;
 import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+import java.util.stream.IntStream;
 
 
 /**
@@ -122,8 +125,13 @@ public class TS_KQBF extends AbstractTS<Integer> {
 
 		minDeltaCost = Double.POSITIVE_INFINITY;
 		updateCL();
+		// To perform the Probabilistic TS we should get a sample N'(S) from the candidate list
+		// and just evaluate the elements in this sample, in our case we will get the sample [0, randInt]
+		Random random = new Random();
+		int randInt = random.nextInt(CL.size());
+		List<Integer> sampleCL = CL.subList(0, randInt);
 		// Evaluate insertions
-		for (Integer candIn : CL) {
+		for (Integer candIn : sampleCL) {
 			Double deltaCost = ObjFunction.evaluateInsertionCost(candIn, sol);
 			if (!TL.contains(candIn) || sol.cost+deltaCost < bestSol.cost) {
 				if (deltaCost < minDeltaCost) {
@@ -145,7 +153,7 @@ public class TS_KQBF extends AbstractTS<Integer> {
 			}
 		}
 		// Evaluate exchanges
-		for (Integer candIn : CL) {
+		for (Integer candIn : sampleCL) {
 			for (Integer candOut : sol) {
 				Double deltaCost = ObjFunction.evaluateExchangeCost(candIn, candOut, sol);
 				if ((!TL.contains(candIn) && !TL.contains(candOut)) || sol.cost+deltaCost < bestSol.cost) {
