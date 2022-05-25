@@ -118,7 +118,10 @@ public class TS_KQBF extends AbstractTS<Integer> {
 	public Solution<Integer> neighborhoodMove() {
 
 		Double minDeltaCost;
-		Integer bestCandIn = null, bestCandOut = null;
+		Integer firstCandIn = null, firstCandOut = null;
+		// Since we are using break in the for loop we created this variable to control if we need to update
+		// the candidate list and the tabulist
+		Boolean needRemoveCandIn = false;
 
 		minDeltaCost = Double.POSITIVE_INFINITY;
 		updateCL();
@@ -128,10 +131,28 @@ public class TS_KQBF extends AbstractTS<Integer> {
 			if (!TL.contains(candIn) || sol.cost+deltaCost < bestSol.cost) {
 				if (deltaCost < minDeltaCost) {
 					minDeltaCost = deltaCost;
-					bestCandIn = candIn;
-					bestCandOut = null;
+					firstCandIn = candIn;
+					firstCandOut = null;
+					if(ObjFunction.shouldInsert(firstCandIn, sol)) {
+						break;
+					}
+					else {
+						needRemoveCandIn = true;
+						break;
+					}
 				}
 			}
+		}
+		if(firstCandIn != null) {
+			if(!needRemoveCandIn) {
+				sol.add(firstCandIn);
+				CL.remove(firstCandIn);
+				TL.add(firstCandIn);
+				return null;
+			}
+			CL.remove(firstCandIn);
+			TL.add(firstCandIn);
+			needRemoveCandIn = false;
 		}
 		// Evaluate removals
 		for (Integer candOut : sol) {
@@ -139,47 +160,49 @@ public class TS_KQBF extends AbstractTS<Integer> {
 			if (!TL.contains(candOut) || sol.cost+deltaCost < bestSol.cost) {
 				if (deltaCost < minDeltaCost) {
 					minDeltaCost = deltaCost;
-					bestCandIn = null;
-					bestCandOut = candOut;
+					firstCandIn = null;
+					firstCandOut = candOut;
+					break;
 				}
 			}
 		}
+		if(firstCandOut != null) {
+			sol.remove(firstCandOut);
+			CL.add(firstCandOut);
+			return null;
+		}
 		// Evaluate exchanges
 		for (Integer candIn : CL) {
+			boolean found = false;
 			for (Integer candOut : sol) {
 				Double deltaCost = ObjFunction.evaluateExchangeCost(candIn, candOut, sol);
 				if ((!TL.contains(candIn) && !TL.contains(candOut)) || sol.cost+deltaCost < bestSol.cost) {
 					if (deltaCost < minDeltaCost) {
 						minDeltaCost = deltaCost;
-						bestCandIn = candIn;
-						bestCandOut = candOut;
+						firstCandIn = candIn;
+						firstCandOut = candOut;
+						found = true;
+						break;
 					}
 				}
 			}
 		}
 		// Implement the best non-tabu move
 		TL.poll();
-		if (bestCandOut != null) {
-			sol.remove(bestCandOut);
-			CL.add(bestCandOut);
-			TL.add(bestCandOut);
-		} else {
-			TL.add(fake);
-		}
-		TL.poll();
-		//I can only add if it doesn't exceed the capacity
-		if (bestCandIn != null) {
-			if(ObjFunction.shouldInsert(bestCandIn, sol)){
-				sol.add(bestCandIn);
-				CL.remove(bestCandIn);
-				TL.add(bestCandIn);
+		//Here only the exchange matter, if I added or removed I already returned from the function
+		if(firstCandIn != null && firstCandOut != null) {
+			//Remove to evaluate the new weight with the new element that will enter
+			sol.remove(firstCandOut);
+			if (ObjFunction.shouldInsert(firstCandIn, sol)) {
+				sol.add(firstCandIn);
+				CL.remove(firstCandIn);
+				TL.add(firstCandIn);
+				CL.add(firstCandOut);
+				return null;
 			} else {
-				//If I cant add I just remove from the candidate list and add it to the tabu list
-				CL.remove(bestCandIn);
-				TL.add(bestCandIn);
+				//If I can't insert I just return that element to the solution
+				sol.add(firstCandOut);
 			}
-		} else {
-			TL.add(fake);
 		}
 		ObjFunction.evaluate(sol);
 		
